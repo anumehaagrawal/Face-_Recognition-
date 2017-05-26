@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Facerec</string>
+    <string name="app_id">76bb40a3</string>
+    <string name="api_key">ec86592c2dd6e66bb5a0009540a7a6ec</string>
 </resources>

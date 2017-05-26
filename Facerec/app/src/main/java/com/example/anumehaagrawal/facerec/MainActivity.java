@@ -26,15 +26,17 @@ import android.graphics.BitmapFactory;
 import android.os.Bundle;
 
 import android.util.Log;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.TextView;
 
 import com.kairos.*;
 
+import org.json.JSONArray;
 import org.json.JSONException;
-
-
-
+import org.json.JSONObject;
+import org.w3c.dom.Text;
 
 
 import java.io.UnsupportedEncodingException;
@@ -42,339 +44,144 @@ import java.io.UnsupportedEncodingException;
 
 
 public class MainActivity extends Activity {
-    EditText mEdit,mEdit2;
 
+    private TextView info;
+    private Button verify, enroll;
+    private KairosListener enrolllistener, verifylistener;
+    private Kairos kairos;
+    private String multipleFaces, galleryID, selector, subject;
     private static final int RC_CAMERA_PERMISSION = 100;
-
-    private static final int RC_CAMERA = 101;
+    private static final int RC_CAMERA_ENROLL = 101;
+    private static final int RC_CAMERA_VERIFY = 102;
 
     @Override
-
     public void onCreate(Bundle savedInstanceState) {
-
-
-
-
         super.onCreate(savedInstanceState);
-
         setContentView(R.layout.activity_main);
-        if(ContextCompat.checkSelfPermission(this,
 
-                Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+        kairos = new Kairos();
+        kairos.setAuthentication(this, getString(R.string.app_id), getString(R.string.api_key));
 
-            ActivityCompat.requestPermissions(this,
+        verify = (Button) findViewById(R.id.verify);
+        enroll = (Button) findViewById(R.id.enroll);
+        info = (TextView) findViewById(R.id.info);
 
-                    new String[]{Manifest.permission.CAMERA},
+        multipleFaces = "false";
+        galleryID = "ChangePay";
+        selector = "FULL";
+        subject = "Human";
 
-                    RC_CAMERA_PERMISSION);
-
-        }
-
-
-
-        findViewById(R.id.button).setOnClickListener(new View.OnClickListener() {
-
+        enrolllistener = new KairosListener() {
             @Override
-
-            public void onClick(View v) {
-
-                Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-
-                startActivityForResult(intent, RC_CAMERA);
-
-            }
-
-        });
-
-    }
-
-
-
-    @Override
-
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-
-        switch (requestCode) {
-
-            case RC_CAMERA_PERMISSION:
-
-                if(!(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED)){
-
-                    finish();
-
+            public void onSuccess(String s) {
+                try {
+                    JSONObject response = new JSONObject(s);
+                    if(response.getJSONArray("images").getJSONObject(0).getJSONObject("transaction").getString("status").equals("success")) {
+                        info.setText("Enrolled Successfully");
+                    } else {
+                        info.setText("Something went wrong!");
+                    }
+                } catch (JSONException e) {
+                    e.printStackTrace();
                 }
 
-                break;
+            }
 
+            @Override
+            public void onFail(String s) {
+                info.setText("An error occurred");
+            }
+        };
+
+        verifylistener = new KairosListener() {
+            @Override
+            public void onSuccess(String s) {
+                try {
+                    JSONObject response = new JSONObject(s);
+                    if (response.getJSONArray("images").getJSONObject(0).getJSONObject("transaction").getString("status").equals("success")) {
+                        JSONArray array = response.getJSONArray("images").getJSONObject(0).getJSONArray("candidates");
+                        if(array != null && array.length() > 0) {
+                            info.setText("Matched!");
+                        }
+                    } else {
+                        info.setText("Something went wrong!");
+                    }
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+
+            @Override
+            public void onFail(String s) {
+                info.setText("An error occurred");
+            }
+        };
+
+        if (ContextCompat.checkSelfPermission(this,
+                Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                    new String[]{Manifest.permission.CAMERA},
+                    RC_CAMERA_PERMISSION);
         }
 
+        enroll.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                startActivityForResult(intent, RC_CAMERA_ENROLL);
+            }
+        });
+
+        verify.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                startActivityForResult(intent, RC_CAMERA_VERIFY);
+            }
+        });
     }
-
-
 
     @Override
-
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         switch (requestCode) {
-
-            case RC_CAMERA:
-
-
-
+            case RC_CAMERA_PERMISSION:
+                if (!(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
+                    finish();
+                }
                 break;
-
         }
-      final  EditText mEdit=(EditText)findViewById(R.id.editText);
-        final  EditText mEdit2=(EditText)findViewById(R.id.editText3);
-
-
-
-
-
-
-        // listener
-
-        KairosListener listener = new KairosListener() {
-
-
-
-            @Override
-
-            public void onSuccess(String response) {
-
-                mEdit.setText(response);
-
-            }
-
-
-
-            @Override
-
-            public void onFail(String response) {
-
-                mEdit.setText(response);
-            }
-
-        };
-        KairosListener listener2 = new KairosListener()
-        {
-            @Override
-
-            public void onSuccess(String response) {
-
-                mEdit2.setText(response);
-
-            }
-
-
-
-            @Override
-
-            public void onFail(String response) {
-
-                mEdit2.setText(response);
-            }
-
-        };
-
-
-
-
-
-        /* * * instantiate a new kairos instance * * */
-
-        Kairos myKairos = new Kairos();
-
-
-
-        /* * * set authentication * * */
-
-        String app_id = "76bb40a3";
-
-        String api_key = "ec86592c2dd6e66bb5a0009540a7a6ec";
-
-        myKairos.setAuthentication(this, app_id, api_key);
-
-
-
-
-
-
-
-
-
-        try {
-
-            //  List galleries
-
-           //  myKairos.listGalleries(listener);
-
-
-            // Bare-essentials Example:
-
-
-
-          //  String image = "http://media.kairos.com/liz.jpg";
-
-         //   myKairos.detect(image, null, null, listener);
-
-/*
-
-         // Fine-grained Example:
-
-            // This example uses a bitmap image and also optional parameters
-
-           / Bitmap image = BitmapFactory.decodeResource(getResources(), R.drawable.liz);
-
-            String selector = "FULL";
-
-            String minHeadScale = "0.25";
-
-            myKairos.detect(image, selector, minHeadScale, listener);
-
-            */
-
-            // Bare-essentials Example:
-
-            // This example uses only an image url, setting optional params to null
-
-// enrolling
-
-           String image = "http://www.jta.org/wp-content/uploads/2016/05/Hillary-Clinton.jpg";
-
-            String subjectId = "Kareena3";
-
-             String galleryId = "new";
-            String selector = "FULL";
-
-            String multipleFaces = "false";
-
-            String minHeadScale = "0.25";
-
-           myKairos.enroll(image, subjectId, galleryId, selector, multipleFaces,minHeadScale,listener);
-
-            // recognising
-
-           image = "http://www.jta.org/wp-content/uploads/2016/05/Hillary-Clinton.jpg";
-
-            galleryId = "new";
-
-            myKairos.recognize(image, galleryId, null, null, null, null, listener2);
-
-
-
-
-/*
-
-            // Fine-grained Example:
-
-            // This example uses a bitmap image and also optional parameters
-
-            Bitmap image = BitmapFactory.decodeResource(getResources(), R.drawable.liz);
-
-            String subjectId = "Elizabeth";
-
-            String galleryId = "friends";
-
-            String selector = "FULL";
-
-            String multipleFaces = "false";
-
-            String minHeadScale = "0.25";
-
-            myKairos.enroll(image,
-
-                    subjectId,
-
-                    galleryId,
-
-                    selector,
-
-                    multipleFaces,
-
-                    minHeadScale,
-
-                    listener);
-
-
-
-                    */
-
-            // Bare-essentials Example:
-
-            // This example uses only an image url, setting optional params to null
-/*
-            // Fine-grained Example:
-
-            // This example uses a bitmap image and also optional parameters
-
-            Bitmap image = BitmapFactory.decodeResource(getResources(), R.drawable.liz);
-
-            String galleryId = "friends";
-
-            String selector = "FULL";
-
-            String threshold = "0.75";
-
-            String minHeadScale = "0.25";
-
-            String maxNumResults = "25";
-
-            myKairos.recognize(image,
-
-                    galleryId,
-
-                    selector,
-
-                    threshold,
-
-                    minHeadScale,
-
-                    maxNumResults,
-
-                    listener);
-
-                    */
-
-            /* * * * GALLERY-MANAGEMENT EXAMPLES * * * *
-
-            //  List galleries
-
-            myKairos.listGalleries(listener);
-
-            //  List subjects in gallery
-
-            myKairos.listSubjectsForGallery("your_gallery_name", listener);
-
-            // Delete subject from gallery
-
-            myKairos.deleteSubject("your_subject_id", "your_gallery_name", listener);
-
-
-            // Delete an entire gallery
-
-            myKairos.deleteGallery("your_gallery_name", listener);
-
-
-
-            */
-        } catch (JSONException e) {
-
-            e.printStackTrace();
-
-        } catch (UnsupportedEncodingException e) {
-
-            e.printStackTrace();
-
-        }
-
-
-
-
-
     }
 
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (resultCode == RESULT_OK) {
 
+            Bitmap image;
 
+            switch (requestCode) {
+                case RC_CAMERA_ENROLL:
+                    image = (Bitmap) data.getExtras().get("data");
+
+                    try {
+                        info.setText("Enrolling...");
+                        kairos.enroll(image, subject, galleryID, selector, multipleFaces, "0.25", enrolllistener);
+                    } catch (JSONException | UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                    }
+
+                    break;
+                case RC_CAMERA_VERIFY:
+                    image = (Bitmap) data.getExtras().get("data");
+
+                    try {
+                        info.setText("Verifying...");
+                        kairos.recognize(image, galleryID, null, null, null, null, verifylistener);
+                    } catch (JSONException | UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                    }
+
+                    break;
+            }
+        }
+    }
 }
